@@ -1,0 +1,47 @@
+name: Sync with upstream
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Executa diariamente às 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v3
+
+      - name: Configurar Git
+        run: |
+          git config --global user.name "Renato Amorim"
+          git config --global user.email "renatoamorim@renatoamorim.com"
+
+      - name: Adicionar upstream e buscar atualizações
+        run: |
+          git remote add upstream https://github.com/ticketz-oss/ticketz.git || echo "Upstream já existe"
+          git fetch upstream
+
+      - name: Mesclar atualizações
+        run: |
+          git checkout main
+          git merge upstream/main --no-edit || echo "::warning:: Conflitos detectados ou nada para mesclar"
+
+      - name: Push para seu fork
+        run: |
+          git push origin main || echo "::error:: Falha ao fazer push"
+
+      - name: Notificar falhas (opcional)
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.renatoamorim.com
+          server_port: 587
+          username: contato@renatoamorim.com
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Falha na sincronização do fork"
+          to: renatoamorim@renatoamorim.com
+          from: Renato Amorim (GitHub Action)
+          body: |
+            O workflow de sincronização falhou. Verifique se houve conflitos ou problemas de push.
